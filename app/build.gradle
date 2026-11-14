@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+// توقيع الإصدار: يُقرأ من keystore.properties (لا يُرفع إلى GitHub، موجود في .gitignore)
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'com.kharbga.game'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.kharbga.game"
+        minSdk 24
+        targetSdk 36          // مطلوب في Google Play للتطبيقات الجديدة والتحديثات منذ 31 أغسطس 2026
+        versionCode 5         // ارفعه عند كل نسخة جديدة ترفعها إلى Google Play
+        versionName "1.4"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    bundle {
+        language { enableSplit = false }   // أبقِ كل اللغات داخل الحزمة
+    }
+
+    lint {
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
