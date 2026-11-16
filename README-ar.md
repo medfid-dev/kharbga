@@ -23,6 +23,3 @@ Authentication ← Settings ← Authorized domains.
 - الخطوط تُحمَّل من Google Fonts، فبدون إنترنت تظهر خطوط النظام. اللعب ضد الحاسوب يعمل دون اتصال.
 - لتحديث اللعبة لاحقاً: استبدل `app/src/main/assets/index.html` (احتفظ بسطر `window.__back` في آخره وتعديل `wv` في كود ملء الشاشة) وأعد البناء. ارفع `versionCode` في `app/build.gradle` عند كل إصدار.
 - اسم الحزمة: `com.kharbga.game`.
-
-## النشر على Google Play
-راجع `play-store/PLAY-CHECKLIST-ar.md`. الناتج المطلوب هو ملف **AAB** (يُبنى في GitHub Actions بعد إضافة أسرار التوقيع)، ومستوى `targetSdk` الحالي 36.

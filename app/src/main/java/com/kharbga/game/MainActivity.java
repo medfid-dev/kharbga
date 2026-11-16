@@ -11,8 +11,6 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
-import android.window.OnBackInvokedDispatcher;
-import android.widget.Toast;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -20,7 +18,6 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import androidx.annotation.RequiresApi;
 import androidx.webkit.WebViewAssetLoader;
 
 /** يعرض لعبة الخربقة (assets/index.html) داخل WebView بملء الشاشة. */
@@ -31,7 +28,6 @@ public class MainActivity extends Activity {
     private static final int BG = 0xFF171008;
 
     private WebView web;
-    private long lastBackAt = 0;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -84,14 +80,6 @@ public class MainActivity extends Activity {
         });
         web.setWebChromeClient(new WebChromeClient());
         web.loadUrl(START);
-
-        if (Build.VERSION.SDK_INT >= 33) registerBackCallback();
-    }
-
-    @RequiresApi(33)
-    private void registerBackCallback() {
-        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
     }
 
     private void hideBars() {
@@ -118,30 +106,13 @@ public class MainActivity extends Activity {
         if (hasFocus) hideBars();
     }
 
-    /**
-     * زر الرجوع: تتصرف الصفحة أولاً (إغلاق نافذة / العودة من اللعبة إلى القائمة).
-     * إن لم تستهلكه الصفحة (نحن في القائمة الرئيسية) نطلب ضغطة ثانية للخروج.
-     */
-    private void handleBack() {
-        if (web == null) { finish(); return; }
-        web.evaluateJavascript(
-                "(function(){try{return window.__back?window.__back():false}catch(e){return false}})()",
-                value -> {
-                    if ("true".equals(value)) return;
-                    long now = System.currentTimeMillis();
-                    if (now - lastBackAt < 2000) {
-                        finish();
-                    } else {
-                        lastBackAt = now;
-                        Toast.makeText(this, "اضغط مرة أخرى للخروج", Toast.LENGTH_SHORT).show();
-                    }
-                });
-    }
-
+    /** زر الرجوع: تتصرف الصفحة أولاً (إغلاق نافذة / العودة إلى القائمة)، وإلا يُغلق التطبيق. */
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
-        handleBack();
+        web.evaluateJavascript(
+                "(function(){try{return window.__back?window.__back():false}catch(e){return false}})()",
+                value -> { if (!"true".equals(value)) finish(); });
     }
 
     @Override

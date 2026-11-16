@@ -211,6 +211,16 @@ button:focus-visible,.cell:focus-visible{outline:3px solid var(--ring);outline-o
             <button type="button" data-v="online" aria-pressed="false">عبر الإنترنت</button>
           </div>
         </div>
+        <div class="field">
+          <span class="lab">عدد الحجارة لكل لاعب (الأصلي ٢٤)</span>
+          <div class="seg" data-key="stones">
+            <button type="button" data-v="12" aria-pressed="false">١٢</button>
+            <button type="button" data-v="16" aria-pressed="false">١٦</button>
+            <button type="button" data-v="20" aria-pressed="false">٢٠</button>
+            <button type="button" data-v="24" aria-pressed="true">٢٤</button>
+          </div>
+          <p class="hintline" id="stonesHint" hidden>عبر الإنترنت: يسري على غرف الأصدقاء، والمطابقة العشوائية دائماً ٢٤.</p>
+        </div>
         <div id="aiOpts">
           <div class="field">
             <span class="lab">مستوى الحاسوب</span>
@@ -229,6 +239,7 @@ button:focus-visible,.cell:focus-visible{outline:3px solid var(--ring);outline-o
           </div>
         </div>
         <div id="onlineOpts" hidden>
+          <div class="acct" id="acctBox" hidden></div>
           <div class="field">
             <label for="nickname">اسمك في الترتيب</label>
             <input id="nickname" class="txt" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="اكتب اسماً مستعاراً">
@@ -260,7 +271,7 @@ button:focus-visible,.cell:focus-visible{outline:3px solid var(--ring);outline-o
         </div>
       </div>
       <div class="steps">
-        <div class="step"><b>ضع</b><span>تتناوبان على وضع ٢٤ حجرة لكل منكما حتى تمتلئ اللوحة ما عدا الوسط.</span></div>
+        <div class="step"><b>ضع</b><span>تتناوبان على وضع حجارتكما (٢٤ لكل منكما في اللعب الأصلي، ويمكنك تقليلها من القائمة) ثم تبدأ مرحلة الحركة.</span></div>
         <div class="step"><b>حرّك</b><span>خطوة واحدة في كل دور، أفقياً أو عمودياً، إلى خانة فارغة.</span></div>
         <div class="step"><b>احصر</b><span>الحجرة المنفردة التي تقع بين حجرتين لك تُؤكل. من تبقّت له حجرة واحدة يخسر.</span></div>
       </div>
@@ -301,10 +312,12 @@ button:focus-visible,.cell:focus-visible{outline:3px solid var(--ring);outline-o
           <div class="toast" id="toast" role="status" aria-live="polite"></div>
         </div>
       </div>
+      <div class="bubbles" id="chatBubbles" aria-live="polite"></div>
       <div class="controls">
         <button class="btn primary" id="btnEnd" type="button" hidden>إنهاء الدور</button>
         <button class="btn" id="btnUndo" type="button">تراجع</button>
         <button class="btn" id="btnHint" type="button">تلميح</button>
+        <button class="btn" id="btnChat" type="button" hidden>💬 رسائل</button>
         <button class="btn" id="btnRestart" type="button">إعادة</button>
         <button class="btn" id="btnMenu" type="button">القائمة</button>
       </div>
@@ -508,6 +521,77 @@ html,body{max-width:100%;overflow-x:clip}
 .btn{max-width:100%}
 @media (max-width:380px){.seg button{font-size:.84rem;padding:0 4px}}
 </style>
+<style id="chat-css">
+/* ===== الرسائل الجاهزة ===== */
+.bubbles{position:fixed;top:max(64px,calc(env(safe-area-inset-top,0px) + 56px));left:12px;right:12px;z-index:40;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.bubble{max-width:min(92%,420px);background:var(--surface);color:var(--ink);border:2px solid var(--accent);border-radius:18px 18px 18px 6px;padding:8px 14px 9px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);animation:bub-in .28s ease-out;font-weight:700;line-height:1.5}
+.bubble small{display:block;font-size:.72rem;font-weight:600;color:var(--ink2)}
+.bubble.me{border-color:var(--line-soft);border-radius:18px 18px 6px 18px;opacity:.95}
+.bubble.out{opacity:0;transform:translateY(-6px);transition:opacity .35s,transform .35s}
+@keyframes bub-in{from{opacity:0;transform:translateY(-10px) scale(.96)}}
+@media (prefers-reduced-motion:reduce){.bubble{animation:none}}
+.qms{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px}
+.qm{font:600 .93rem/1.35 var(--font-ui);min-height:42px;padding:8px 12px;border-radius:14px;border:1px solid var(--line-soft);background:var(--surface2);color:var(--ink);cursor:pointer;text-align:start}
+.qm:active{background:var(--accent);color:#fff}
+.qm:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.cmute{margin-top:12px}
+</style>
+<style id="acct-css">
+.acct{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:.92rem;line-height:1.45}
+.acct[hidden]{display:none}
+.acct-t{flex:1 1 180px;min-width:0}
+.acct .em{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start}
+.btn.sm{min-height:38px;padding:0 14px;font-size:.9rem;flex:none}
+.flab{display:block;margin:12px 0 6px;font-weight:600;color:var(--ink2);font-size:.9rem}
+.linkbtn{background:none;border:0;padding:8px 0;margin-top:4px;color:var(--accent);font:600 .9rem var(--font-ui);cursor:pointer;text-decoration:underline}
+</style>
+<style id="dash-css">
+/* ===== الإحصاءات ولوحة التحكم ===== */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.tile{background:var(--surface2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile b{font-size:1.6rem;font-weight:700;line-height:1.15}
+.tile span{color:var(--ink2);font-size:.82rem}
+.dsec{margin-top:16px}.dsec h3{margin:0 0 2px}
+.chart{position:relative;margin-top:6px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .grid{stroke:var(--line-soft);stroke-width:1}
+.chart .ax{fill:var(--ink2);font-size:9px;font-family:var(--font-ui)}
+.chart .val{fill:var(--ink);font-size:10px;font-weight:700}
+.chart .mark{fill:var(--teal)}
+.chart .bar:hover .mark,.chart .bar:focus .mark{filter:brightness(1.25)}
+.chart .bar:focus,.chart .pt:focus{outline:none}
+.chart .bar:focus-visible .mark{stroke:var(--ring);stroke-width:2}
+.chart .ln{fill:none;stroke:var(--teal);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chart .dot{fill:var(--teal);stroke:var(--surface);stroke-width:2}
+.ctip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:8px;padding:4px 9px;font-size:.78rem;display:flex;gap:6px;align-items:baseline;white-space:nowrap;z-index:3}
+.ctip b{font-size:.95rem}.ctip span{opacity:.8}
+.meters{display:grid;gap:8px;margin-top:6px}
+.mrow{display:grid;grid-template-columns:7.5em minmax(0,1fr) auto;gap:8px;align-items:center;font-size:.88rem}
+.mt{height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.mt i{display:block;height:100%;border-radius:999px;background:var(--teal)}
+.mv{color:var(--ink2);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:end}
+.idrow{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.idrow code{flex:1;min-width:0;overflow-wrap:anywhere;font-size:.8rem;background:var(--surface2);padding:6px 8px;border-radius:8px;direction:ltr;text-align:left}
+.idrow .btn{min-height:40px}
+.admbar{display:flex;gap:8px}.admbar .btn{flex:1;min-height:40px}
+.toplist{list-style:none;margin:6px 0 0;padding:0}
+.toplist li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:.88rem}
+.toplist .rk{width:1.6em;color:var(--ink2);font-variant-numeric:tabular-nums}
+.toplist .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.toplist .rt{font-variant-numeric:tabular-nums}
+.toplist .gm{color:var(--ink2);font-size:.8rem;min-width:2.6em;text-align:end}
+.mini{display:inline-flex;align-items:center;justify-content:center;flex:none;height:32px;min-height:32px;padding:0 10px;margin-inline-start:4px;border-radius:9px;border:1px solid var(--line-soft);background:var(--surface);color:var(--ink);font-size:.8rem;font-weight:600;cursor:pointer}
+.mini.danger,.btn.danger{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.rooms{list-style:none;padding:0;margin:8px 0 0}
+.rooms li{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line-soft);font-size:.84rem}
+.rooms li span{flex:1;color:var(--ink2)}
+.cfg{display:grid;gap:8px}.cfg textarea.txt{padding:8px 12px;resize:vertical;min-height:64px}
+.txt.num{width:6em;min-height:40px;margin-inline-start:6px}
+.dz{display:grid;gap:8px}
+#annBar{position:fixed;top:0;left:0;right:0;z-index:45;background:var(--accent);color:var(--accent-ink);padding:8px 44px 8px 12px;font-size:.9rem;font-weight:600;text-align:center;padding-top:max(8px,env(safe-area-inset-top,0px))}
+#annBar button{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;background:transparent;font-size:1.3rem;cursor:pointer;color:inherit}
+</style>
 <style id="stats-css">
 /* ===== السجل والترتيب ===== */
 .txt{width:100%;min-height:46px;border-radius:14px;border:1px solid var(--line-soft);background:var(--surface);color:var(--ink);font:600 1rem var(--font-ui);padding:0 14px}
@@ -554,7 +638,8 @@ html,body{max-width:100%;overflow-x:clip}
 <script>
 'use strict';
 /*CORE-START*/
-const N=7,SIZE=49,CENTER=24,STONES=24,NOCAP_LIMIT=60;
+const N=7,SIZE=49,CENTER=24,NOCAP_LIMIT=60;
+let STONES=24;                 /* عدد حجارة كل لاعب: 12 أو 16 أو 20 أو 24 */
 const DIRS=[[0,1],[0,-1],[1,0],[-1,0]];
 const NB=[],RAYS=[],POS=new Array(SIZE).fill(0);
 for(let i=0;i<SIZE;i++){
@@ -617,6 +702,47 @@ function extendTurn(t,pos,p,turns){
     turns.push(t2);
     extendTurn(t2,j,p,turns);
   }
+}
+
+/* ===== إكمال سلسلة الأكل بضغطة واحدة ===== */
+/* آخر خانة تصل إليها كل سلسلة أكل ممكنة (خطوتان آكلتان فأكثر). عند تعدد المسارات إلى الخانة نفسها يُختار الأكثر أكلاً. */
+function chainFinals(from){
+  const res=new Map();
+  if(!G||G.phase!=='move'||!S.chain||from===null||from===undefined||G.board[from]!==G.turn)return res;
+  const p=G.turn,adj=new Set(NB[from]);
+  (function walk(pos,board,steps,ncaps){
+    let ext=false;
+    for(const j of NB[pos]){
+      if(board[j]!==0)continue;
+      const nb=board.slice();nb[pos]=0;nb[j]=p;
+      const caps=findCaptures(nb,j,p);
+      if(!caps.length)continue;
+      for(const c of caps)nb[c]=0;
+      ext=true;
+      walk(j,nb,steps.concat([[pos,j]]),ncaps+caps.length);
+    }
+    if(!ext&&steps.length>=2){
+      const cur=res.get(pos);
+      if(!cur||ncaps>cur.caps)res.set(pos,{steps,caps:ncaps});
+    }
+  })(from,G.board,[],0);
+  res.delete(from);                                              // لا تُعرض الخانة الأصلية (تحتلها الحجرة نفسها في اللوحة)
+  for(const k of [...res.keys()])if(adj.has(k))res.delete(k);   // خانة مجاورة: تبقى خطوة عادية
+  return res;
+}
+/* ينفّذ كل خطوات السلسلة تباعاً (بمهلة قصيرة ليراها اللاعب)؛ كل خطوة تمر بمنطق doStep نفسه فتتزامن عبر الإنترنت كالمعتاد */
+function runChain(steps,delay){
+  if(delay===undefined)delay=620;
+  const g=G;
+  const step=i=>{
+    if(G!==g||g.over)return;
+    const [f,t]=steps[i];
+    if(i===steps.length-1){g.auto=false;doStep(f,t);return;}
+    doStep(f,t,'cont');
+    if(delay>0)setTimeout(()=>step(i+1),delay);else step(i+1);
+  };
+  g.auto=true;g.sel=null;g.hint=null;
+  step(0);
 }
 
 /* ===== الذكاء الاصطناعي ===== */
@@ -711,8 +837,8 @@ function choosePlacement(b,p,pl,cfg,chain){
       v=0;
       for(const sh of shuffles){
         const t=bb.slice();
-        let need=STONES-pp[1];
-        for(const x of sh){if(x===c)continue;t[x]=need>0?1:2;need--;}
+        let n1=STONES-pp[1],n2=STONES-pp[2];
+        for(const x of sh){if(x===c)continue;if(n1>0){t[x]=1;n1--;}else if(n2>0){t[x]=2;n2--;}}
         v+=search(t,1,cfg.rollDepth,-Infinity,Infinity,ctx);
       }
       v/=shuffles.length;
@@ -730,7 +856,8 @@ const LEVELS={
 };
 
 /* ===== حالة اللعبة ===== */
-const S={mode:'ai',level:'medium',human:1,chain:true,sound:true,drag:true,ocolor:'rand'};
+const S={mode:'ai',level:'medium',human:1,chain:true,sound:true,drag:true,ocolor:'rand',stones:24};
+function okStones(n){return n===12||n===16||n===20||n===24;}
 let G=null;
 const hooks={render(){},toast(){},sfx(){},over(){},net(){},leave(){},rematch(){},resign(){}};
 let REMOTE=false,REPLAY=false;   // حركة قادمة من الخصم / إعادة بناء مباراة سابقة (اللعب عبر الإنترنت)
@@ -743,7 +870,7 @@ function nameOf(p){
 }
 function adj(p){return p===1?'فاتحة':'داكنة';}
 function capWord(n){return n===1?'حجرة واحدة':n===2?'حجرتين':n+' حجارة';}
-function canAct(){return !!G&&!G.over&&!G.thinking&&(S.mode==='pvp'||G.turn===S.human)&&(G.chain!==null||!holdPending());}
+function canAct(){return !!G&&!G.over&&!G.thinking&&!G.auto&&(S.mode==='pvp'||G.turn===S.human)&&(G.chain!==null||!holdPending());}
 
 function snapshot(){
   return JSON.stringify({board:G.board,ids:G.ids,nextId:G.nextId,turn:G.turn,phase:G.phase,placed:G.placed,caps:G.caps,noCap:G.noCap,last:G.last});
@@ -807,7 +934,7 @@ function doStep(from,to,mode){
   const p=G.turn,b=G.board;
   b[from]=0;b[to]=p;G.ids[to]=G.ids[from];G.ids[from]=0;
   const caps=findCaptures(b,to,p);
-  for(const c of caps){pendingThrow.set(G.ids[c],{color:b[c],cell:c,hand:!!S.drag&&(S.mode==='pvp'||p===S.human)&&!REPLAY&&!REMOTE});b[c]=0;G.ids[c]=0;}
+  for(const c of caps){pendingThrow.set(G.ids[c],{color:b[c],cell:c,hand:!!S.drag&&S.mode!=='online'&&(S.mode==='pvp'||p===S.human)&&!REPLAY&&!REMOTE});   /* عبر الإنترنت: تُرمى الحجارة المأكولة تلقائياً عند الطرفين */b[c]=0;G.ids[c]=0;}
   G.caps[p]+=caps.length;G.last={from,to};G.turnDirty=true;G.hint=null;G.sel=null;
   if(caps.length){G.turnHadCap=true;hooks.sfx('capture');hooks.toast(capMsg(p,caps.length));}
   else hooks.sfx('move',NB[to].filter(j=>b[j]!==0).length);
@@ -884,7 +1011,7 @@ function prevHumanIndex(){
   return -1;
 }
 function canUndo(){
-  if(!G||G.over||G.thinking||S.mode==='online')return false;
+  if(!G||G.over||G.thinking||G.auto||S.mode==='online')return false;
   if(S.mode==='ai'&&G.turn!==S.human)return false;
   return G.turnDirty||prevHumanIndex()>=0;
 }
@@ -974,6 +1101,7 @@ function loadSettings(){
     if(s.ocolor==='rand'||s.ocolor==='1'||s.ocolor==='2')S.ocolor=s.ocolor;
     if(LEVELS[s.level])S.level=s.level;
     if(s.human===1||s.human===2)S.human=s.human;
+    if(okStones(Number(s.stones)))S.stones=Number(s.stones);
     if(typeof s.chain==='boolean')S.chain=s.chain;
     if(typeof s.sound==='boolean')S.sound=s.sound;
     if(typeof s.drag==='boolean')S.drag=s.drag;
@@ -1115,14 +1243,15 @@ function showRules(){
   openModal({
     title:'قواعد الخربقة',
     body:
-    '<h3>اللوحة</h3><p>٧×٧ خانة، لكل لاعب ٢٤ حجرة. الخانة الوسطى تبقى فارغة في البداية.</p>'+
+    '<h3>اللوحة</h3><p>٧×٧ خانة، لكل لاعب ٢٤ حجرة في اللعب الأصلي (يمكن اختيار ١٢ أو ١٦ أو ٢٠ من القائمة). الخانة الوسطى تبقى فارغة في البداية.</p>'+
     '<h3>المرحلة الأولى: الوضع</h3><p>يتناوب اللاعبان على وضع حجرة واحدة في أي خانة فارغة غير الوسطى حتى تمتلئ اللوحة (٤٨ حجرة). لا أكل في هذه المرحلة، لكن مكان كل حجرة يحدد ما سيحدث بعدها.</p>'+
     '<h3>المرحلة الثانية: الحركة والأكل</h3><ul>'+
     '<li>يبدأ اللاعب الأول، ويحرك حجرة واحدة خطوة واحدة أفقياً أو عمودياً إلى خانة مجاورة فارغة.</li>'+
     '<li>الأكل بالحصار: إذا حرّكتَ حجرة فصارت حجرة واحدة فقط من حجارة الخصم، في صف أو عمود، محصورة بين حجرتك المتحركة وحجرة أخرى لك، فإنها تُؤكل.</li>'+
     '<li>إذا كانت بين حجرتيك حجرتان من حجارة الخصم أو أكثر متتالية فلا تُؤكل.</li>'+
     '<li>الحصار يتم بحركتك أنت فقط. إذا دخلتَ بنفسك بين حجرتين للخصم فأنت آمن.</li>'+
-    '<li>بعد الأكل يمكنك مواصلة الأكل بنفس الحجرة ما دامت لها حركة آكلة، أو إنهاء دورك.</li></ul>'+
+    '<li>بعد الأكل يمكنك مواصلة الأكل بنفس الحجرة ما دامت لها حركة آكلة، أو إنهاء دورك.</li>'+
+    '<li>إن كانت أمام الحجرة سلسلة أكل من خطوتين أو أكثر، فاضغط مباشرة على آخر خانة تصل إليها السلسلة لتنفَّذ كلها دفعة واحدة.</li></ul>'+
     '<div class="demo"><figure><div class="mini">'+before+'</div><figcaption>قبل: تتحرك الحجرة المحاطة بالخط المتقطع إلى الأعلى</figcaption></figure>'+
     '<figure><div class="mini">'+after+'</div><figcaption>بعد: الحجرة الداكنة بين حجرتين فاتحتين فتُؤكل</figcaption></figure></div>'+
     '<h3>الفوز والتعادل</h3><ul>'+
@@ -1135,7 +1264,7 @@ function showRules(){
 
 /* ---------- حساب ما يظهر على اللوحة ---------- */
 function calcUI(){
-  const ui={place:new Set(),dest:new Map(),movable:new Set()};
+  const ui={place:new Set(),dest:new Map(),movable:new Set(),finals:new Map()};
   if(!G||G.over||!canAct())return ui;
   const p=G.turn,b=G.board;
   if(G.phase==='place'){
@@ -1148,10 +1277,14 @@ function calcUI(){
       const n=capCount(b,G.chain,j,p);
       if(n>0)ui.dest.set(j,n);
     }
+    ui.finals=chainFinals(G.chain);
     return ui;
   }
   for(let i=0;i<SIZE;i++)if(b[i]===p&&NB[i].some(j=>b[j]===0))ui.movable.add(i);
-  if(G.sel!==null)for(const j of NB[G.sel])if(b[j]===0)ui.dest.set(j,capCount(b,G.sel,j,p));
+  if(G.sel!==null){
+    for(const j of NB[G.sel])if(b[j]===0)ui.dest.set(j,capCount(b,G.sel,j,p));
+    ui.finals=chainFinals(G.sel);
+  }
   return ui;
 }
 function mkStone(p){
@@ -1178,6 +1311,7 @@ function statusText(){
     if(S.mode==='pvp')return 'فاز '+nameOf(w);
     return w===S.human?'فزتَ بالمباراة':(S.mode==='ai'?'فاز الحاسوب':'فاز الخصم');
   }
+  if(G.auto)return 'جارٍ إكمال سلسلة الأكل…';
   if(holdPending()&&G.chain===null){const n=holdCount();return 'أخرِج '+(n>1?'الحجارة المأكولة ('+n+')':'الحجرة المأكولة')+' بسحبها وضربها على الرمل قبل أن يبدأ الدور التالي';}
   if(S.mode==='online'&&net.oppPresent===false)return 'انقطع اتصال الخصم… ننتظر عودته';
   if(G.thinking)return G.phase==='place'?'الحاسوب يختار مكان حجرته…':'الحاسوب يلعب…';
@@ -1187,7 +1321,7 @@ function statusText(){
   if(G.phase==='place')return who+': ضع حجرتك رقم '+(G.placed[p]+1)+' من '+STONES+' في أي خانة فارغة';
   if(G.chain!==null)return who+': واصل الأكل بالحجرة نفسها أو أنهِ الدور';
   if(G.sel!==null)return who+': اختر الخانة المجاورة التي تنتقل إليها';
-  return who+': اختر حجرة لتحريكها';
+  return who+': اختر حجرة مجاورة لخانة فارغة لتحريكها';
 }
 let lastStatus='';
 function render(){
@@ -1255,7 +1389,7 @@ function render(){
   const st=statusText();
   if(st!==lastStatus){$('#statusText').textContent=st;lastStatus=st;}
   const onl=S.mode==='online';
-  $('#btnUndo').hidden=onl;$('#btnHint').hidden=onl;
+  $('#btnUndo').hidden=onl;$('#btnHint').hidden=onl;$('#btnChat').hidden=!onl;
   $('#btnRestart').textContent=onl?(G.over?'مباراة أخرى':'انسحاب'):'إعادة';
   $('#btnUndo').disabled=!canUndo();
   $('#btnHint').disabled=!canAct();
@@ -1267,6 +1401,8 @@ function onCell(i){
   const p=G.turn,b=G.board;
   if(G.phase==='place'){humanPlace(i);return;}
   if(G.chain!==null){
+    const f=chainFinals(G.chain).get(i);
+    if(f){runChain(f.steps);return;}
     if(NB[G.chain].includes(i)&&b[i]===0&&capCount(b,G.chain,i,p)>0)doStep(G.chain,i);
     return;
   }
@@ -1274,7 +1410,11 @@ function onCell(i){
     if(!NB[i].some(j=>b[j]===0)){toast('هذه الحجرة محاصَرة ولا تستطيع الحركة');return;}
     G.sel=G.sel===i?null:i;G.hint=null;render();return;
   }
-  if(G.sel!==null&&b[i]===0&&NB[G.sel].includes(i))doStep(G.sel,i);
+  if(G.sel!==null){
+    const f=chainFinals(G.sel).get(i);                 // قد تكون الخانة مشغولة بحجرة ستُؤكل في الطريق
+    if(f){runChain(f.steps);return;}
+    if(b[i]===0&&NB[G.sel].includes(i))doStep(G.sel,i);
+  }
 }
 
 /* ---------- النهاية والقوائم ---------- */
@@ -1312,6 +1452,7 @@ function showMenu(){
 }
 function startGame(){
   clearThrown();
+  if(S.mode!=='online')STONES=okStones(S.stones)?S.stones:24;
   $('#menu').hidden=true;$('#game').hidden=false;
   for(const [,e] of stoneEls)e.remove();
   stoneEls.clear();lastStatus='';
@@ -1323,6 +1464,7 @@ function syncMenu(){
     for(const b of seg.querySelectorAll('button'))b.setAttribute('aria-pressed',String(S[key])===b.dataset.v?'true':'false');
   }
   $('#aiOpts').hidden=S.mode!=='ai';
+  $('#stonesHint').hidden=S.mode!=='online';
   $('#onlineOpts').hidden=S.mode!=='online';
   $('#btnStart').hidden=S.mode==='online';
   if(typeof netMenuSync==='function')netMenuSync();
@@ -1340,7 +1482,7 @@ for(const seg of document.querySelectorAll('.seg[data-key]')){
   seg.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
     const key=seg.dataset.key,v=b.dataset.v;
-    S[key]=key==='human'?Number(v):v;
+    S[key]=(key==='human'||key==='stones')?Number(v):v;
     syncMenu();saveSettings();
   });
 }
@@ -1694,11 +1836,11 @@ window.sandRun=function(gen,done){
    ضع إعدادات مشروعك في الكائن التالي (الخطوات في ملف التعليمات).
    ===================================================================== */
 const FIREBASE_CONFIG={
-  apiKey:"AIzaSyDz-DhnpTc1b8h4OGU_mxPTJGfZT0rfafc",
-  authDomain:"kharbgadz.firebaseapp.com",
-  databaseURL:"https://kharbgadz-default-rtdb.europe-west1.firebasedatabase.app",   /* مثال: https://اسم-مشروعك-default-rtdb.firebaseio.com */
-  projectId:"kharbgadz",
-  appId:"1:1054469134373:web:974cec536692a4caa807cc"
+  apiKey:"",
+  authDomain:"",
+  databaseURL:"",   /* مثال: https://اسم-مشروعك-default-rtdb.firebaseio.com */
+  projectId:"",
+  appId:""
 };
 const FB_VER='10.12.2',FRESH=40000,SES='kharbga_room',UIDK='kharbga_uid';
 const CONFIG_MSG='لم تُضبط خدمة Firebase بعد. افتح الملف وضع إعدادات مشروعك داخل FIREBASE_CONFIG ثم أعد التحميل (الخطوات في ملف التعليمات).';
@@ -1731,13 +1873,17 @@ function fbInit(){
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
     net.db=firebase.database();
     try{
-      const c=await firebase.auth().signInAnonymously();net.uid=c.user.uid;
+      const auth=firebase.auth();
+      let user=await new Promise(res=>{const un=auth.onAuthStateChanged(u=>{try{un();}catch(_){}res(u);});});   /* حساب محفوظ؟ */
+      if(!user)user=(await auth.signInAnonymously()).user;
+      net.uid=user.uid;net.email=user.isAnonymous?null:(user.email||null);
     }catch(e){
       let u=lsGet(UIDK);
       if(!u){u='u'+Math.random().toString(36).slice(2,12)+Date.now().toString(36);lsSet(UIDK,u);}
       net.uid=u;
     }
     try{net.off=(await net.db.ref('.info/serverTimeOffset').once('value')).val()||0;}catch(_){net.off=0;}
+    try{await dashBoot();}catch(_){}
     return net;
   })().catch(e=>{fbP=null;throw e;});
   return fbP;
@@ -1774,6 +1920,7 @@ function netMenuSync(){
   const r=$('#btnResume');
   r.hidden=!(s&&s.code&&fbConfigured());
   if(!r.hidden)r.textContent='العودة إلى مباراتك ('+s.code+')';
+  if(typeof acctSync==='function')acctSync();
 }
 
 /* ---------- الغرف ---------- */
@@ -1791,7 +1938,7 @@ async function createRoom(pub){
   for(let k=0;k<6;k++){
     const code=genCode(),ref=net.db.ref('rooms/'+code);
     const res=await ref.transaction(cur=>cur===null?
-      {host:net.uid,hostColor:color,chain:chain,pub:!!pub,status:'waiting',gen:0,players:{['p'+color]:net.uid},t:firebase.database.ServerValue.TIMESTAMP}:undefined);
+      {host:net.uid,hostColor:color,chain:chain,stones:pub?24:(okStones(S.stones)?S.stones:24),pub:!!pub,status:'waiting',gen:0,players:{['p'+color]:net.uid},t:firebase.database.ServerValue.TIMESTAMP}:undefined);
     if(res.committed)return {code,color,chain};
   }
   throw new Error('تعذّر إنشاء غرفة');
@@ -1892,6 +2039,7 @@ async function startRandom(){
   setBusy(true);msg('');
   try{
     await fbInit();
+    if(randomBlocked()){closeModal();netFail(new Error('المطابقة العشوائية متوقفة مؤقتاً من الإدارة. يمكنك اللعب مع صديق بكود الغرفة.'));return;}
     const q=net.db.ref('queue/open');
     for(let a=0;a<4;a++){
       /* 1) هل ينتظر لاعب؟ خذه */
@@ -1949,7 +2097,7 @@ async function enterRoom(code,color,room){
   net.host=room.host===net.uid;net.opp=room.pub?'الخصم':'صديقك';
   net.oppUid=pl['p'+(3-color)]||null;net.oppPresent=null;
   net.prev={human:S.human,chain:S.chain};
-  S.mode='online';S.human=color;S.chain=room.chain!==false;
+  S.mode='online';S.human=color;S.chain=room.chain!==false;STONES=okStones(room.stones)?room.stones:24;
   net.next=0;net.buf={};net.pend=[];net.queue=[];net.pumping=false;net.offs=[];
   lsSet(SES,JSON.stringify({code}));
   startGame();
@@ -1967,6 +2115,7 @@ function replayList(list){
 function on(r,ev,cb){r.on(ev,cb);net.offs.push(()=>r.off(ev,cb));}
 function attach(){
   const R=net.ref;
+  if(typeof chatAttach==='function')chatAttach();
   on(R.child('moves').orderByKey(),'child_added',s=>feed(parseInt(s.key,10),s.val(),false));
   on(R.child('result'),'value',s=>{
     const v=s.val();
@@ -2176,13 +2325,14 @@ function recordResult(){
     const rated=!!net.pub,me=net.myRating,op=net.oppRating,db=net.db,uid=net.uid,name=getName();
     const score=r==='w'?1:r==='d'?.5:0;
     const delta=rated?Math.round(K_FACTOR*(score-expectedScore(me,op))):0;
-    entry.rated=rated;entry.delta=delta;
+    entry.rated=rated;entry.delta=delta;entry.nr=Math.max(100,me+delta);
+    if(S.human===1&&typeof dashCount==='function')dashCount(rated);
     g.over.rated=rated;g.over.delta=delta;g.over.newRating=Math.max(100,me+delta);
     if(rated)try{
       db.ref('players/'+uid).transaction(cur=>{
         const c=cur||{w:0,l:0,d:0,games:0,rating:START_RATING};
         const o=Object.assign({},c,{name,games:(c.games||0)+1,rating:Math.max(100,(c.rating||START_RATING)+delta),t:firebase.database.ServerValue.TIMESTAMP});
-        o[r]=(c[r]||0)+1;return o;
+        o[r]=(c[r]||0)+1;o.peak=Math.max(c.peak||START_RATING,o.rating);return o;
       }).then(tr=>{
         const v=tr.snapshot.val();
         if(v&&typeof v.rating==='number'){net.myRating=v.rating;g.over.newRating=v.rating;if(rated&&G===g)hooks.toast('تصنيفك الآن '+v.rating+' ('+(delta>0?'+':'')+delta+')');}
@@ -2194,16 +2344,26 @@ function recordResult(){
 
 /* ---------- نافذة السجل والترتيب ---------- */
 function showStats(tab){
-  tab=tab==='me'?'me':'board';
+  tab=['me','st','adm'].includes(tab)?tab:'board';
+  const T=[['board','الترتيب'],['me','سجلي'],['st','إحصاءاتي']];
+  if(net.isAdmin)T.push(['adm','الإدارة']);
   openModal({
     title:'السجل والترتيب',
-    body:'<div class="seg tabs"><button type="button" data-t="board" aria-pressed="'+(tab==='board')+'">ترتيب اللاعبين</button>'+
-      '<button type="button" data-t="me" aria-pressed="'+(tab==='me')+'">سجلي</button></div><div id="statsBody"></div>',
+    body:'<div class="seg tabs">'+T.map(t=>'<button type="button" data-t="'+t[0]+'" aria-pressed="'+(tab===t[0])+'">'+t[1]+'</button>').join('')+'</div><div id="statsBody"></div>',
     actions:[{label:'إغلاق',primary:true}]
   });
-  for(const b of document.querySelectorAll('#overlay .tabs button'))b.addEventListener('click',()=>showStats(b.dataset.t));
+  const bind=b=>b.addEventListener('click',()=>showStats(b.dataset.t));
+  for(const b of document.querySelectorAll('#overlay .tabs button'))bind(b);
   const box=$('#statsBody');
-  if(tab==='board')renderBoard(box);else renderMe(box);
+  if(tab==='board')renderBoard(box);else if(tab==='me')renderMe(box);else if(tab==='st')renderMyStats(box);else renderAdmin(box);
+  if(!net.isAdmin&&fbConfigured()&&!net.uid){       /* قد تتبيّن صلاحية المالك بعد فتح النافذة */
+    fbInit().then(()=>{
+      const tb=document.querySelector('#overlay .tabs');
+      if(net.isAdmin&&tb&&!tb.querySelector('[data-t="adm"]')){
+        const b=document.createElement('button');b.type='button';b.dataset.t='adm';b.setAttribute('aria-pressed','false');b.textContent='الإدارة';bind(b);tb.appendChild(b);
+      }
+    }).catch(()=>{});
+  }
 }
 async function renderBoard(box){
   if(!fbConfigured()){box.innerHTML='<p class="netmsg err">'+esc(CONFIG_MSG)+'</p>';return;}
@@ -2257,6 +2417,548 @@ function renderMe(box){
 })();
 </script>
 <script>
+'use strict';
+/* =====================================================================
+   إحصاءات اللاعب + لوحة تحكم المالك
+   - إحصاءاتي: من سجل هذا الجهاز (آخر 60 مباراة) وملف اللاعب في Firebase.
+   - لوحة التحكم: تظهر فقط لمن وُضع معرّفه (uid) تحت /admins في قاعدة البيانات.
+   ===================================================================== */
+const APP_VERSION=11;
+net.cfg=null;net.isAdmin=false;
+
+/* ---------- الإقلاع بعد تسجيل الدخول: الحضور، الإعدادات، صلاحية المالك ---------- */
+async function dashBoot(){
+  try{const r=net.db.ref('online/'+net.uid);r.onDisconnect().remove();await r.set(firebase.database.ServerValue.TIMESTAMP);}catch(_){}
+  try{net.cfg=(await net.db.ref('config').once('value')).val()||{};}catch(_){net.cfg={};}
+  try{net.isAdmin=(await net.db.ref('admins/'+net.uid).once('value')).val()===true;}catch(_){net.isAdmin=false;}
+  applyConfig();
+}
+function applyConfig(){
+  let bar=document.getElementById('annBar');
+  const c=net.cfg||{},items=[];
+  if(c.minVersion>APP_VERSION)items.push('يتوفر إصدار أحدث من اللعبة. حدّث التطبيق أو أعد تحميل الصفحة.');
+  if(c.announcement&&String(c.announcement).trim())items.push(String(c.announcement).slice(0,200));
+  if(!items.length){if(bar)bar.hidden=true;return;}
+  if(!bar){
+    bar=document.createElement('div');bar.id='annBar';bar.setAttribute('role','status');
+    bar.innerHTML='<span class="annTxt"></span><button type="button" aria-label="إخفاء">×</button>';
+    bar.querySelector('button').addEventListener('click',()=>{bar.hidden=true;});
+    document.body.appendChild(bar);
+  }
+  bar.querySelector('.annTxt').textContent=items.join(' · ');bar.hidden=false;
+}
+function randomBlocked(){return !!(net.cfg&&net.cfg.randomEnabled===false);}
+
+/* ---------- عدّادات عامة (يزيدها صاحب اللون الأول فقط حتى لا تُحسب المباراة مرتين) ---------- */
+function dayKey(t){const d=new Date(t);return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();}
+function bump(path){return net.db.ref(path).transaction(c=>(c|0)+1);}
+function dashCount(rated){
+  try{
+    const k=dayKey(stime());
+    bump('stats/totals/games');bump('stats/daily/'+k+'/g');
+    if(rated){bump('stats/totals/rated');bump('stats/daily/'+k+'/r');}
+  }catch(_){}
+}
+
+/* ---------- أدوات رسم ---------- */
+const SVGNS='http://www.w3.org/2000/svg';
+function sv(tag,attrs,txt){const e=document.createElementNS(SVGNS,tag);for(const k in attrs||{})e.setAttribute(k,attrs[k]);if(txt!=null)e.textContent=txt;return e;}
+function tipFor(wrap){
+  let t=wrap.querySelector('.ctip');
+  if(!t){t=document.createElement('div');t.className='ctip';t.hidden=true;wrap.appendChild(t);}
+  return t;
+}
+function showTip(wrap,x,y,val,label){
+  const t=tipFor(wrap);t.textContent='';
+  const b=document.createElement('b');b.textContent=val;const s=document.createElement('span');s.textContent=label;
+  t.append(b,s);t.hidden=false;
+  const w=wrap.clientWidth,tw=t.offsetWidth;
+  t.style.left=Math.max(0,Math.min(w-tw,x-tw/2))+'px';t.style.top=Math.max(0,y-t.offsetHeight-6)+'px';
+}
+function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p;}
+
+/* أعمدة: items=[{k:تسمية المحور, v:قيمة, tip:نص}] — لون واحد، أعمدة رفيعة، شبكة هامسة */
+function colChart(items,aria){
+  const wrap=document.createElement('div');wrap.className='chart';
+  const W=320,H=150,L=30,R=6,T=14,B=22,pw=W-L-R,ph=H-T-B;
+  const mx=niceMax(Math.max(1,...items.map(i=>i.v))),n=items.length,slot=pw/n,bw=Math.min(24,slot-4);
+  const svg=sv('svg',{viewBox:'0 0 '+W+' '+H,role:'img','aria-label':aria,direction:'ltr'});
+  for(const f of [0,.5,1]){
+    const y=T+ph*(1-f);
+    svg.appendChild(sv('line',{x1:L,x2:W-R,y1:y,y2:y,class:'grid'}));
+    svg.appendChild(sv('text',{x:L-5,y:y+3.5,'text-anchor':'end',class:'ax'},Math.round(mx*f)));
+  }
+  const maxI=items.reduce((a,it,i)=>it.v>items[a].v?i:a,0),step=n>9?2:1;
+  items.forEach((it,i)=>{
+    const cx=L+slot*i+slot/2,h=Math.max(it.v>0?2:0,ph*it.v/mx),x=cx-bw/2,y=T+ph-h,r=Math.min(4,bw/2,h);
+    const g=sv('g',{tabindex:0,class:'bar','aria-label':it.tip});
+    g.appendChild(sv('rect',{x:cx-slot/2,y:T,width:slot,height:ph+B,fill:'transparent'}));            /* هدف اللمس أوسع من العمود */
+    if(h>0)g.appendChild(sv('path',{d:'M'+x+' '+(T+ph)+'V'+(y+r)+'Q'+x+' '+y+' '+(x+r)+' '+y+'H'+(x+bw-r)+'Q'+(x+bw)+' '+y+' '+(x+bw)+' '+(y+r)+'V'+(T+ph)+'Z',class:'mark'}));
+    if(i%step===0||i===n-1)g.appendChild(sv('text',{x:cx,y:H-6,'text-anchor':'middle',class:'ax'},it.k));
+    if(i===maxI&&it.v>0)g.appendChild(sv('text',{x:cx,y:y-4,'text-anchor':'middle',class:'val'},it.v));       /* وسم القمّة فقط */
+    const show=()=>showTip(wrap,(cx/W)*wrap.clientWidth,(y/H)*wrap.clientHeight,it.v,it.tip);
+    g.addEventListener('pointerenter',show);g.addEventListener('pointerdown',show);g.addEventListener('focus',show);
+    g.addEventListener('pointerleave',()=>{tipFor(wrap).hidden=true;});g.addEventListener('blur',()=>{tipFor(wrap).hidden=true;});
+    svg.appendChild(g);
+  });
+  wrap.appendChild(svg);return wrap;
+}
+/* منحنى: pts=[{v, tip}] */
+function lineChart(pts,aria){
+  const wrap=document.createElement('div');wrap.className='chart';
+  const W=320,H=150,L=34,R=12,T=14,B=14,pw=W-L-R,ph=H-T-B;
+  let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v));
+  if(hi-lo<20){const m=(hi+lo)/2;lo=m-10;hi=m+10;}
+  const pad=(hi-lo)*.12;lo=Math.floor((lo-pad)/10)*10;hi=Math.ceil((hi+pad)/10)*10;
+  const X=i=>L+(pts.length===1?pw/2:pw*i/(pts.length-1)),Y=v=>T+ph*(1-(v-lo)/(hi-lo));
+  const svg=sv('svg',{viewBox:'0 0 '+W+' '+H,role:'img','aria-label':aria,direction:'ltr'});
+  for(const f of [0,.5,1]){const v=Math.round(lo+(hi-lo)*f),y=Y(v);
+    svg.appendChild(sv('line',{x1:L,x2:W-R,y1:y,y2:y,class:'grid'}));svg.appendChild(sv('text',{x:L-5,y:y+3.5,'text-anchor':'end',class:'ax'},v));}
+  svg.appendChild(sv('path',{d:pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.v).toFixed(1)).join(''),class:'ln'}));
+  const last=pts.length-1;
+  pts.forEach((p,i)=>{
+    const g=sv('g',{tabindex:0,class:'pt','aria-label':p.tip});
+    g.appendChild(sv('circle',{cx:X(i),cy:Y(p.v),r:12,fill:'transparent'}));                          /* هدف لمس ≥ 24px */
+    if(i===last||pts.length<=12)g.appendChild(sv('circle',{cx:X(i),cy:Y(p.v),r:i===last?4.5:3,class:'dot'}));
+    const show=()=>showTip(wrap,(X(i)/W)*wrap.clientWidth,(Y(p.v)/H)*wrap.clientHeight,p.v,p.tip);
+    g.addEventListener('pointerenter',show);g.addEventListener('pointerdown',show);g.addEventListener('focus',show);
+    g.addEventListener('pointerleave',()=>{tipFor(wrap).hidden=true;});
+    svg.appendChild(g);
+  });
+  wrap.appendChild(svg);return wrap;
+}
+/* جدول بديل للرسم (يُظهر القيم دون تحويم) */
+function tableView(rows,h1,h2){
+  const t=document.createElement('table');t.className='lb tv';
+  const th=document.createElement('thead'),tr=document.createElement('tr');
+  for(const h of [h1,h2]){const c=document.createElement('th');c.textContent=h;tr.appendChild(c);}
+  th.appendChild(tr);t.appendChild(th);const tb=document.createElement('tbody');
+  for(const r of rows){const x=document.createElement('tr');for(const v of r){const c=document.createElement('td');c.textContent=v;x.appendChild(c);}tb.appendChild(x);}
+  t.appendChild(tb);return t;
+}
+function tile(label,value){
+  const d=document.createElement('div');d.className='tile';
+  const v=document.createElement('b');v.textContent=value;const l=document.createElement('span');l.textContent=label;
+  d.append(v,l);return d;
+}
+function sect(title,sub){
+  const s=document.createElement('section');s.className='dsec';
+  const h=document.createElement('h3');h.textContent=title;s.appendChild(h);
+  if(sub){const p=document.createElement('p');p.className='hintline';p.textContent=sub;s.appendChild(p);}
+  return s;
+}
+function arNum(n){return String(n);}
+function fmtDate(t){try{return new Date(t).toLocaleDateString('ar',{day:'numeric',month:'short'});}catch(_){return '';}}
+
+/* ---------- إحصاءاتي ---------- */
+function renderMyStats(box){
+  const h=jget(HISTK,[]),st=jget(STATK,{});
+  box.textContent='';
+  if(!h.length&&!Object.keys(st).length){const p=document.createElement('p');p.textContent='لا إحصاءات بعد. العب بعض المباريات وستظهر هنا.';box.appendChild(p);}
+  else{
+    let w=0,l=0,d=0;
+    for(const k in st){w+=st[k].w|0;l+=st[k].l|0;d+=st[k].d|0;}
+    const tot=w+l+d,rate=tot?Math.round(100*w/tot):0;
+    /* السلاسل من السجل (الأحدث أولاً) */
+    let cur=0,best=0,run=0;
+    for(let i=h.length-1;i>=0;i--){if(h[i].r==='w'){run++;if(run>best)best=run;}else run=0;}
+    for(const e of h){if(e.r==='w')cur++;else break;}
+    const grid=document.createElement('div');grid.className='tiles';
+    grid.append(tile('مباريات',tot),tile('نسبة الفوز',rate+'%'),tile('سلسلة الفوز الحالية',cur),tile('أفضل سلسلة (آخر '+h.length+')',best));
+    box.appendChild(grid);
+    /* نسبة الفوز لكل مستوى: قائمة مقاييس */
+    const s1=sect('نسبة الفوز حسب الخصم');
+    const rows=[['ai_easy','حاسوب سهل'],['ai_medium','حاسوب متوسط'],['ai_hard','حاسوب صعب'],['online','عبر الإنترنت']];
+    const ul=document.createElement('div');ul.className='meters';
+    for(const [k,name] of rows){
+      const o=st[k];if(!o)continue;const n=(o.w|0)+(o.l|0)+(o.d|0),pc=n?Math.round(100*(o.w|0)/n):0;
+      const r=document.createElement('div');r.className='mrow';
+      const a=document.createElement('span');a.className='mn';a.textContent=name;
+      const tr=document.createElement('span');tr.className='mt';const f=document.createElement('i');f.style.width=pc+'%';tr.appendChild(f);
+      const v=document.createElement('span');v.className='mv';v.textContent=pc+'% · '+n;
+      r.append(a,tr,v);ul.appendChild(r);
+    }
+    if(ul.children.length){s1.appendChild(ul);box.appendChild(s1);}
+    /* أكثر خصم */
+    const cnt={};for(const e of h)if(e.m==='online'&&e.opp)cnt[e.opp]=(cnt[e.opp]||0)+1;
+    const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+    if(top&&top[1]>1){const p=document.createElement('p');p.className='hintline';p.textContent='أكثر خصم لعبت ضده: '+top[0]+' ('+top[1]+' مباريات)';box.appendChild(p);}
+    /* منحنى التصنيف */
+    const rp=h.filter(e=>e.rated&&typeof e.nr==='number').reverse();
+    if(rp.length>=2){
+      const s2=sect('تطوّر تصنيفك','آخر '+rp.length+' مباراة مصنَّفة');
+      const pts=rp.map((e,i)=>({v:e.nr,tip:'بعد المباراة '+(i+1)+' · '+fmtDate(e.t)}));
+      s2.appendChild(lineChart(pts,'منحنى التصنيف'));box.appendChild(s2);
+    }
+  }
+  /* ملف Firebase: التصنيف والذروة والمعرّف */
+  const me=document.createElement('div');me.className='netmsg';me.hidden=true;box.insertBefore(me,box.firstChild);
+  if(fbConfigured()){
+    fbInit().then(()=>net.db.ref('players/'+net.uid).once('value')).then(s=>{
+      const v=s.val();if(!v||!box.isConnected)return;
+      me.hidden=false;me.textContent='تصنيفك '+(v.rating|0)+(v.peak?' · أعلى تصنيف '+(v.peak|0):'')+' · مباريات مصنَّفة '+(v.games|0);
+    }).catch(()=>{});
+    const idr=document.createElement('div');idr.className='idrow';
+    const lab=document.createElement('span');lab.textContent='معرّفك: ';
+    const code=document.createElement('code');code.textContent='…';
+    const cp=document.createElement('button');cp.type='button';cp.className='btn';cp.textContent='نسخ';cp.disabled=true;
+    idr.append(lab,code,cp);box.appendChild(idr);
+    fbInit().then(()=>{
+      code.textContent=net.uid;cp.disabled=false;
+      cp.addEventListener('click',()=>{
+        const done=()=>hooks.toast('تم نسخ المعرّف');
+        try{navigator.clipboard.writeText(net.uid).then(done,()=>{});}catch(_){const r=document.createRange();r.selectNodeContents(code);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}
+      });
+    }).catch(()=>{});
+  }
+}
+
+/* ---------- لوحة التحكم ---------- */
+const ADM={tbl:false,data:null};
+async function loadAdmin(){
+  const db=net.db,get=p=>db.ref(p).once('value').then(s=>s,()=>null);
+  const [tot,daily,onl,pl,rm,cfg]=await Promise.all([
+    get('stats/totals'),
+    db.ref('stats/daily').orderByKey().limitToLast(14).once('value').then(s=>s,()=>null),
+    get('online'),
+    db.ref('players').orderByChild('rating').limitToLast(500).once('value').then(s=>s,()=>null),
+    db.ref('rooms').orderByChild('t').limitToLast(300).once('value').then(s=>s,()=>null),
+    get('config')
+  ]);
+  const o={totals:(tot&&tot.val())||{},daily:{},online:onl&&onl.val()?Object.keys(onl.val()).length:0,players:[],rooms:[],cfg:(cfg&&cfg.val())||{}};
+  if(daily)daily.forEach(c=>{o.daily[c.key]=c.val()||{};});
+  if(pl)pl.forEach(c=>{const v=c.val()||{};o.players.push({uid:c.key,name:cleanName(v.name)||'لاعب',rating:v.rating|0,games:v.games|0,w:v.w|0,l:v.l|0,d:v.d|0});});
+  o.players.reverse();
+  if(rm)rm.forEach(c=>{const v=c.val()||{};o.rooms.push({code:c.key,status:v.status||'',pub:!!v.pub,t:typeof v.t==='number'?v.t:0});});
+  o.rooms.reverse();
+  return o;
+}
+function twoStep(btn,label,fn){
+  let armed=false,tm=0;const orig=btn.textContent;
+  btn.addEventListener('click',()=>{
+    if(!armed){armed=true;btn.textContent='تأكيد؟';btn.classList.add('danger');tm=setTimeout(()=>{armed=false;btn.textContent=orig;btn.classList.remove('danger');},4000);return;}
+    clearTimeout(tm);armed=false;btn.disabled=true;fn();
+  });
+}
+async function renderAdmin(box){
+  if(!net.isAdmin){box.textContent='هذه اللوحة للمالك فقط.';return;}
+  box.innerHTML='<p class="waitline"><span class="spinner"></span>جارٍ تحميل الإحصاءات…</p>';
+  let D;
+  try{D=await loadAdmin();}catch(e){box.textContent='';const p=document.createElement('p');p.className='netmsg err';p.textContent=describeErr(e);box.appendChild(p);return;}
+  if(!box.isConnected)return;
+  ADM.data=D;drawAdmin(box);
+}
+function drawAdmin(box){
+  const D=ADM.data,now=stime();
+  box.textContent='';
+  /* شريط الأدوات */
+  const bar=document.createElement('div');bar.className='admbar';
+  const rf=document.createElement('button');rf.type='button';rf.className='btn';rf.textContent='تحديث';rf.addEventListener('click',()=>renderAdmin(box));
+  const tv=document.createElement('button');tv.type='button';tv.className='btn';tv.textContent=ADM.tbl?'عرض الرسوم':'عرض الجداول';tv.setAttribute('aria-pressed',String(ADM.tbl));
+  tv.addEventListener('click',()=>{ADM.tbl=!ADM.tbl;drawAdmin(box);});
+  bar.append(rf,tv);box.appendChild(bar);
+  /* مؤشرات */
+  const games=D.totals.games|0,rated=D.totals.rated|0,active=D.rooms.filter(r=>r.status==='playing'||r.status==='active').length;
+  const waiting=D.rooms.filter(r=>r.status==='waiting').length;
+  const tiles=document.createElement('div');tiles.className='tiles';
+  tiles.append(tile('متصلون الآن',D.online),tile('لاعبون في الترتيب',D.players.filter(p=>p.games>0).length),tile('إجمالي المباريات',games),tile('مباريات مصنَّفة',rated),tile('مباريات ودّية',Math.max(0,games-rated)),tile('غرف تنتظر خصماً',waiting));
+  box.appendChild(tiles);
+  /* مباريات حسب اليوم */
+  const s1=sect('المباريات حسب اليوم','آخر 14 يوماً (بتوقيت UTC)');
+  const days=[];for(let i=13;i>=0;i--)days.push(dayKey(now-i*864e5));
+  const di=days.map(k=>({k:String(k%100),v:(D.daily[k]&&D.daily[k].g)|0,tip:String(k).replace(/(\d{4})(\d\d)(\d\d)/,'$3/$2/$1')}));
+  s1.appendChild(ADM.tbl?tableView(di.map(i=>[i.tip,i.v]),'اليوم','المباريات'):colChart(di,'المباريات حسب اليوم'));
+  box.appendChild(s1);
+  /* توزيع التصنيف */
+  const ps=D.players.filter(p=>p.games>0);
+  if(ps.length){
+    const s2=sect('توزيع التصنيف','عدد اللاعبين في كل شريحة من 100 نقطة');
+    const lo=Math.floor(Math.min(...ps.map(p=>p.rating))/100)*100,hi=Math.floor(Math.max(...ps.map(p=>p.rating))/100)*100;
+    const bins=[];for(let b=lo;b<=hi;b+=100)bins.push({k:String(b),v:ps.filter(p=>p.rating>=b&&p.rating<b+100).length,tip:b+' – '+(b+99)});
+    s2.appendChild(ADM.tbl?tableView(bins.map(i=>[i.tip,i.v]),'الشريحة','اللاعبون'):colChart(bins,'توزيع التصنيف'));
+    box.appendChild(s2);
+  }
+  /* أفضل اللاعبين */
+  const s3=sect('أفضل 10 لاعبين');
+  if(!ps.length){const p=document.createElement('p');p.textContent='لا لاعبين مصنَّفين بعد.';s3.appendChild(p);}
+  else{
+    const ul=document.createElement('ol');ul.className='toplist';
+    ps.slice(0,10).forEach((p,i)=>{
+      const li=document.createElement('li');
+      const rk=document.createElement('span');rk.className='rk';rk.textContent=i+1;
+      const nm=document.createElement('span');nm.className='nm';nm.textContent=p.name;
+      const rt=document.createElement('b');rt.className='rt';rt.textContent=p.rating;
+      const gm=document.createElement('span');gm.className='gm';gm.textContent=p.games+' م';
+      const a=document.createElement('button');a.type='button';a.className='mini';a.textContent='تصفير';
+      const b=document.createElement('button');b.type='button';b.className='mini';b.textContent='حذف';
+      twoStep(a,'تصفير',async()=>{try{await net.db.ref('players/'+p.uid).set({name:p.name,rating:START_RATING,w:0,l:0,d:0,games:0,peak:START_RATING});}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+      twoStep(b,'حذف',async()=>{try{await net.db.ref('players/'+p.uid).remove();}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+      li.append(rk,nm,rt,gm,a,b);ul.appendChild(li);
+    });
+    s3.appendChild(ul);
+  }
+  box.appendChild(s3);
+  /* الغرف */
+  const s4=sect('الغرف','آخر '+D.rooms.length+' غرفة محفوظة');
+  const old=D.rooms.filter(r=>r.t&&now-r.t>864e5);
+  const cl=document.createElement('button');cl.type='button';cl.className='btn';cl.textContent='حذف الغرف الأقدم من 24 ساعة ('+old.length+')';cl.disabled=!old.length;
+  twoStep(cl,'',async()=>{const u={};for(const r of old)u[r.code]=null;try{await net.db.ref('rooms').update(u);hooks.toast('تم حذف '+old.length+' غرفة');}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+  s4.appendChild(cl);
+  const rl=document.createElement('ul');rl.className='rooms';
+  for(const r of D.rooms.slice(0,8)){
+    const li=document.createElement('li');
+    const c=document.createElement('code');c.textContent=r.code;
+    const m=document.createElement('span');m.textContent=(r.pub?'عشوائية':'صديق')+' · '+({waiting:'تنتظر',playing:'جارية'}[r.status]||'—')+(r.t?' · منذ '+(()=>{const m=Math.max(1,Math.round((now-r.t)/6e4));return m<120?m+' د':Math.round(m/60)+' س';})():'');
+    const x=document.createElement('button');x.type='button';x.className='mini';x.textContent='حذف';
+    twoStep(x,'حذف',async()=>{try{await net.db.ref('rooms/'+r.code).remove();}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+    li.append(c,m,x);rl.appendChild(li);
+  }
+  s4.appendChild(rl);box.appendChild(s4);
+  /* الإعدادات */
+  const s5=sect('إعدادات اللعبة','تصل إلى كل اللاعبين عند فتح اللعبة');
+  const f=document.createElement('div');f.className='cfg';
+  const ta=document.createElement('textarea');ta.className='txt';ta.rows=2;ta.maxLength=200;ta.placeholder='إعلان يظهر أعلى الشاشة (اتركه فارغاً لإخفائه)';ta.value=D.cfg.announcement||'';ta.setAttribute('aria-label','نص الإعلان');
+  const l1=document.createElement('label');l1.className='check';const cb=document.createElement('input');cb.type='checkbox';cb.checked=D.cfg.randomEnabled!==false;l1.append(cb,document.createTextNode(' المطابقة العشوائية مفعّلة'));
+  const l2=document.createElement('label');l2.className='check';l2.append(document.createTextNode('أدنى إصدار مطلوب (الحالي '+APP_VERSION+'): '));
+  const mv=document.createElement('input');mv.type='number';mv.className='txt num';mv.min=0;mv.value=D.cfg.minVersion|0;l2.appendChild(mv);
+  const sv2=document.createElement('button');sv2.type='button';sv2.className='btn primary';sv2.textContent='حفظ الإعدادات';
+  sv2.addEventListener('click',async()=>{
+    sv2.disabled=true;
+    try{await net.db.ref('config').set({announcement:ta.value.trim().slice(0,200),randomEnabled:cb.checked,minVersion:Math.max(0,mv.value|0)});
+      net.cfg=(await net.db.ref('config').once('value')).val()||{};applyConfig();hooks.toast('تم حفظ الإعدادات');}
+    catch(e){hooks.toast(describeErr(e));}
+    sv2.disabled=false;
+  });
+  f.append(ta,l1,l2,sv2);s5.appendChild(f);box.appendChild(s5);
+  /* منطقة الخطر */
+  const s6=sect('منطقة الخطر');
+  const r1=document.createElement('button');r1.type='button';r1.className='btn';r1.textContent='تصفير لوحة الترتيب كلها';
+  twoStep(r1,'',async()=>{try{await net.db.ref('players').remove();hooks.toast('تم تصفير الترتيب');}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+  const r2=document.createElement('button');r2.type='button';r2.className='btn';r2.textContent='تصفير عدّادات المباريات';
+  twoStep(r2,'',async()=>{try{await net.db.ref('stats').remove();hooks.toast('تم تصفير العدّادات');}catch(e){hooks.toast(describeErr(e));}renderAdmin(box);});
+  const wr=document.createElement('div');wr.className='dz';wr.append(r1,r2);s6.appendChild(wr);box.appendChild(s6);
+}
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   الحساب بالبريد الإلكتروني (Firebase Authentication)
+   - اللعب يبدأ بحساب مجهول. «حساب جديد» يربط البريد بالحساب المجهول نفسه، فيبقى تصنيفك.
+   - «دخول» بحساب موجود ينقلك إلى ذلك الحساب وتصنيفه (من أي جهاز).
+   ===================================================================== */
+const AUTHM={
+  'auth/invalid-email':'البريد الإلكتروني غير صحيح.',
+  'auth/missing-email':'أدخل البريد الإلكتروني.',
+  'auth/missing-password':'أدخل كلمة المرور.',
+  'auth/weak-password':'كلمة المرور ضعيفة: استخدم 6 رموز على الأقل.',
+  'auth/email-already-in-use':'هذا البريد مسجَّل من قبل. استخدم تبويب «دخول».',
+  'auth/credential-already-in-use':'هذا البريد مسجَّل من قبل. استخدم تبويب «دخول».',
+  'auth/invalid-credential':'البريد أو كلمة المرور غير صحيحة.',
+  'auth/wrong-password':'البريد أو كلمة المرور غير صحيحة.',
+  'auth/user-not-found':'البريد أو كلمة المرور غير صحيحة.',
+  'auth/too-many-requests':'محاولات كثيرة. انتظر قليلاً ثم أعد المحاولة.',
+  'auth/user-disabled':'هذا الحساب موقوف.',
+  'auth/network-request-failed':'تعذّر الاتصال بالإنترنت.',
+  'auth/operation-not-allowed':'تسجيل الدخول بالبريد غير مفعَّل في Firebase: Authentication ← Sign-in method ← Email/Password ← Enable.',
+  'auth/admin-restricted-operation':'تسجيل الدخول بالبريد غير مفعَّل في Firebase: Authentication ← Sign-in method ← Email/Password ← Enable.'
+};
+function authErr(e){const c=e&&e.code;return AUTHM[c]||describeErr(e);}
+function curUser(){try{return firebase.auth().currentUser;}catch(_){return null;}}
+
+function afterAuth(u){
+  net.uid=u.uid;net.email=u.isAnonymous?null:(u.email||null);net.myRating=START_RATING;
+  const done=()=>{const ni=$('#nickname');if(ni)ni.value=getName();acctRender();};
+  if(!net.db){done();return Promise.resolve();}
+  return net.db.ref('players/'+u.uid).once('value').then(s=>{
+    const v=s.val();
+    if(v&&v.name){const n=cleanName(v.name);if(n)lsSet(NAMEK,n);}
+    if(v&&typeof v.rating==='number')net.myRating=v.rating;
+  }).catch(()=>{}).then(done);
+}
+async function acctSignUp(email,pw){
+  await fbInit();
+  const auth=firebase.auth(),u=auth.currentUser;
+  let res;
+  if(u&&u.isAnonymous)res=await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(email,pw));
+  else res=await auth.createUserWithEmailAndPassword(email,pw);
+  await afterAuth(res.user);return res.user;
+}
+async function acctLogin(email,pw){
+  await fbInit();
+  const res=await firebase.auth().signInWithEmailAndPassword(email,pw);
+  await afterAuth(res.user);return res.user;
+}
+async function acctLogout(){
+  await fbInit();
+  const auth=firebase.auth();
+  await auth.signOut();
+  const c=await auth.signInAnonymously();
+  await afterAuth(c.user);
+}
+async function acctReset(email){await fbInit();await firebase.auth().sendPasswordResetEmail(email);}
+
+/* ---------- الواجهة ---------- */
+function acctRender(){
+  const box=$('#acctBox');if(!box)return;
+  if(!fbConfigured()||S.mode!=='online'){box.hidden=true;return;}
+  box.hidden=false;
+  if(net.email){
+    box.innerHTML='<div class="acct-t">حسابك<span class="em" dir="ltr">'+esc(net.email)+'</span></div><button class="btn sm" id="acctOut" type="button">تسجيل الخروج</button>';
+    $('#acctOut').addEventListener('click',async()=>{
+      $('#acctOut').disabled=true;
+      try{await acctLogout();msg('تم تسجيل الخروج.');}catch(e){msg(authErr(e),'err');}
+      acctRender();
+    });
+  }else{
+    box.innerHTML='<div class="acct-t">سجّل الدخول ليبقى حسابك وتصنيفك محفوظين على كل أجهزتك</div><button class="btn sm primary" id="acctIn" type="button">تسجيل الدخول</button>';
+    $('#acctIn').addEventListener('click',()=>showAuth('login'));
+  }
+}
+let acctInit=false;
+function acctSync(){
+  if(!fbConfigured()){acctRender();return;}
+  if(!acctInit){
+    acctInit=true;
+    fbInit().then(()=>{const u=curUser();net.email=u&&!u.isAnonymous?u.email:null;acctRender();}).catch(()=>{acctInit=false;acctRender();});
+  }else acctRender();
+}
+function showAuth(mode){
+  mode=mode==='signup'?'signup':'login';
+  const signup=mode==='signup';
+  openModal({
+    title:signup?'إنشاء حساب':'تسجيل الدخول',
+    body:'<div class="seg tabs" id="authTabs"><button type="button" data-t="login" aria-pressed="'+(!signup)+'">دخول</button>'+
+      '<button type="button" data-t="signup" aria-pressed="'+signup+'">حساب جديد</button></div>'+
+      '<label class="flab" for="authEmail">البريد الإلكتروني</label>'+
+      '<input id="authEmail" class="txt" type="email" dir="ltr" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">'+
+      '<label class="flab" for="authPass">كلمة المرور</label>'+
+      '<input id="authPass" class="txt" type="password" dir="ltr" autocomplete="'+(signup?'new-password':'current-password')+'">'+
+      (signup?'<p class="hintline">6 رموز على الأقل. يبقى تصنيفك الحالي في الحساب الجديد.</p>'
+             :'<button type="button" class="linkbtn" id="authForgot">نسيت كلمة المرور؟</button>')+
+      '<p class="netmsg" id="authMsg" role="alert" hidden></p>',
+    actions:[{label:signup?'إنشاء الحساب':'دخول',primary:true,keep:true,fn:b=>submit(b)},{label:'إلغاء'}]
+  });
+  const say=(t,err)=>{const m=$('#authMsg');m.textContent=t;m.hidden=!t;m.className='netmsg'+(err?' err':'');};
+  async function submit(btn){
+    const email=$('#authEmail').value.trim(),pw=$('#authPass').value;
+    if(!email){say('أدخل البريد الإلكتروني.',true);return;}
+    if(!pw){say('أدخل كلمة المرور.',true);return;}
+    btn.disabled=true;say('');
+    try{
+      if(signup)await acctSignUp(email,pw);else await acctLogin(email,pw);
+      closeModal();msg(signup?'تم إنشاء حسابك.':'تم تسجيل الدخول.');
+    }catch(e){say(authErr(e),true);btn.disabled=false;}
+  }
+  for(const b of document.querySelectorAll('#authTabs button'))b.addEventListener('click',()=>showAuth(b.dataset.t));
+  for(const id of ['authEmail','authPass'])$('#'+id).addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const ok=document.querySelector('#overlay .row .btn.primary');if(ok&&!ok.disabled)submit(ok);}
+  });
+  const fg=$('#authForgot');
+  if(fg)fg.addEventListener('click',async()=>{
+    const email=$('#authEmail').value.trim();
+    if(!email){say('اكتب بريدك في الخانة أعلاه أولاً، ثم اضغط «نسيت كلمة المرور».',true);return;}
+    try{await acctReset(email);say('أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك.',false);}
+    catch(e){say(authErr(e),true);}
+  });
+  setTimeout(()=>{const f=$('#authEmail');if(f&&f.focus)f.focus();},50);
+}
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   رسائل جاهزة بالدارجة بين اللاعبين (عبر الإنترنت فقط)
+   تُرسَل أرقام الرسائل فقط (لا نص حر)، فلا إساءات ولا حاجة لإشراف.
+   ===================================================================== */
+const CHATK='kharbga_chat_mute';
+const CHAT_GROUPS=[
+  {t:'بداية 👋',m:[
+    'السلام عليكم، واش راك؟ 👋',
+    'بالتوفيق، والأحسن يربح 🤝',
+    'جيت نلعب ماشي نتفرج 😎',
+    'حضّر روحك، راني في يومي 🔥']},
+  {t:'تحدٍّ ظريف 😏',m:[
+    'راك تلعب مع محترف يا صاحبي 😏',
+    'مازال الشوط طويل، لا تفرح بكري 😉',
+    'ركّز شوية، راني نشوف فيك 👀',
+    'هاذي هدية مني ليك 🎁',
+    'يالله لعب، ما تضيّعش وقتنا ⏱️',
+    'ما يغلبني غير النعاس 😴']},
+  {t:'ضحك 😂',m:[
+    'واش هاذي الحركة يا خويا؟ 😂',
+    'الحجرة هاذي كانت غالية عليك؟ 😅',
+    'ما تزعفش، غير حجرة وتجي أخرى 😄',
+    'نخمّم… سمح لي، راني نحسب 🧠',
+    'هاذي ماشي لعبة، هاذي معركة الحومة 😤',
+    'قلبي كبير، نسامحك على الأكلة 😇',
+    'يا ويلي! واش درت؟ 😱']},
+  {t:'مدح 👏',m:[
+    'ضربة معلّم! 👏',
+    'تبارك الله عليك، تلعب مليح 👍',
+    'ما كنتش نتسنى هاذي، برافو 😮',
+    'باهي باهي، حسبتها مليح 👌']},
+  {t:'ختام 🏆',m:[
+    'بصحتك الربحة 🏆',
+    'غلبتني هاذي المرة… الجاية ما تفلتش 💪',
+    'عاود نلعبو؟ الثأر ما يتأخرش 😄',
+    'نشربو قهوة ونعاودو؟ ☕',
+    'الحظ لعب معاك، ماشي أنت 😜',
+    'لعبة نظيفة، شكراً يا صاحبي 🤝']}
+];
+const CHAT=[];
+for(const g of CHAT_GROUPS){g.o=CHAT.length;for(const x of g.m)CHAT.push(x);}
+
+function chatMuted(){return lsGet(CHATK)==='1';}
+function chatShouldShow(v){
+  if(!v||!Number.isInteger(v.i)||!CHAT[v.i])return false;     /* رقم غير معروف: يُتجاهل */
+  if(typeof v.t==='number'&&v.t<net.chatT)return false;        /* رسالة قديمة من قبل دخولي */
+  if(v.u!==net.uid&&chatMuted())return false;                  /* مكتومة */
+  return true;
+}
+function showBubble(v){
+  const box=$('#chatBubbles');if(!box)return;
+  const mine=v.u===net.uid;
+  const d=document.createElement('div');d.className='bubble'+(mine?' me':'');
+  d.innerHTML='<small>'+esc(mine?'أنت':(net.oppName||net.opp||'الخصم'))+'</small><span>'+esc(CHAT[v.i])+'</span>';
+  box.appendChild(d);
+  while(box.children.length>3)box.removeChild(box.firstChild);
+  if(!mine){try{navigator.vibrate&&navigator.vibrate(25);}catch(_){}}
+  setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),400);},4500);
+}
+function chatAttach(){
+  net.chatT=stime()-3000;net.chatLog=[];
+  on(net.ref.child('chat'),'child_added',s=>{
+    const v=s.val();
+    if(chatShouldShow(v))showBubble(v);
+  });
+}
+function chatSend(i){
+  if(!net.active||!net.ref||!CHAT[i])return;
+  const now=Date.now();
+  net.chatLog=(net.chatLog||[]).filter(t=>now-t<10000);
+  const last=net.chatLog[net.chatLog.length-1]||0;
+  if(net.chatLog.length>=4||now-last<1500){hooks.toast('على مهلك… رسالة كل لحظة 😄');return;}
+  net.chatLog.push(now);
+  const k=String(now)+'_'+Math.random().toString(36).slice(2,6);
+  net.ref.child('chat/'+k).set({u:net.uid,i:i,t:firebase.database.ServerValue.TIMESTAMP}).catch(()=>hooks.toast('تعذّر إرسال الرسالة'));
+}
+function chatPanel(){
+  if(!net.active)return;
+  let h='';
+  for(const g of CHAT_GROUPS){
+    h+='<h3>'+g.t+'</h3><div class="qms">'+g.m.map((x,k)=>'<button type="button" class="qm" data-i="'+(g.o+k)+'">'+esc(x)+'</button>').join('')+'</div>';
+  }
+  h+='<label class="check cmute"><input type="checkbox" id="chatMute"'+(chatMuted()?' checked':'')+'> كتم رسائل الخصم</label>';
+  openModal({title:'رسائل جاهزة 💬',body:h,actions:[{label:'إغلاق',primary:true}]});
+  for(const b of document.querySelectorAll('#overlay .qm'))b.addEventListener('click',()=>{closeModal();chatSend(parseInt(b.dataset.i,10));});
+  $('#chatMute').addEventListener('change',e=>{lsSet(CHATK,e.target.checked?'1':'0');});
+}
+(function(){
+  const b=$('#btnChat');if(b)b.addEventListener('click',chatPanel);
+  const prevLeave=hooks.leave;
+  hooks.leave=function(){try{const bx=$('#chatBubbles');if(bx)bx.innerHTML='';}catch(_){}prevLeave();};
+})();
+</script>
+<script>
 /* ملء الشاشة (حيث يدعمه المتصفح)؛ على آيفون يكفي «إضافة إلى الشاشة الرئيسية» */
 (function(){
   const de=document.documentElement,rq=de.requestFullscreen||de.webkitRequestFullscreen;
@@ -2266,7 +2968,7 @@ function renderMe(box){
   function enter(){try{const r=rq.call(de);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
   function leave(){try{const r=ex.call(document);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
   function sync(){btn.setAttribute('aria-pressed',String(isFs()));}
-  if(!rq||/; wv\)/.test(navigator.userAgent)){return;}   /* داخل التطبيق: الشاشة كاملة أصلاً */
+  if(!rq||/; wv\)/.test(navigator.userAgent)){return;}
   btn.hidden=false;
   btn.addEventListener('click',()=>{isFs()?leave():enter();});
   document.addEventListener('fullscreenchange',sync);document.addEventListener('webkitfullscreenchange',sync);
@@ -2278,29 +2980,29 @@ function renderMe(box){
 })();
 </script>
 <script>
-/* زر الرجوع في أندرويد: يستدعيه MainActivity */
-window.__back=function(){
-  try{
-    /* 1) أي نافذة منبثقة مفتوحة: أغلقها (إلا النوافذ المقفلة كالبحث عن لاعب) */
+/* زر الرجوع في الهاتف أو المتصفح: يرجع إلى النافذة السابقة (إغلاق نافذة ← القائمة) بدل مغادرة الصفحة */
+(function(){
+  function handleBack(){
     var ov=document.getElementById('overlay');
-    if(ov&&!ov.hidden){
-      if(typeof modalLock!=='undefined'&&modalLock)return true;
-      closeModal();return true;
-    }
-    /* 2) داخل اللعبة: ارجع إلى القائمة (قد تظهر نافذة تأكيد) */
+    if(ov&&!ov.hidden){if(typeof modalLock!=='undefined'&&modalLock)return true;closeModal();return true;}
     var g=document.getElementById('game');
     if(g&&!g.hidden){document.getElementById('btnMenu').click();return true;}
-  }catch(e){ return true; }  /* لا نُغلق التطبيق بسبب خطأ عابر في الصفحة */
-  return false;               /* القائمة الرئيسية: يتولى التطبيق الخروج بضغطتين */
-};
-</script>
-<script>
-/* إن لم تُضبط Firebase لا نعرض خيار «عبر الإنترنت» حتى لا يرى المستخدم ميزة لا تعمل */
-(function(){try{
-  if(typeof fbConfigured==='function'&&!fbConfigured()){
-    var b=document.querySelector('.seg[data-key="mode"] button[data-v="online"]');
-    if(b)b.hidden=true;
+    return false;
   }
-}catch(e){}})();
+  window.__back=handleBack;
+  if(/; wv\)/.test(navigator.userAgent)||!window.history||!history.pushState)return;
+  var armed=false;
+  function arm(){
+    if(armed)return;armed=true;
+    try{history.replaceState({k:'base'},'');history.pushState({k:'app'},'');}catch(_){armed=false;}
+  }
+  document.addEventListener('click',arm,true);
+  document.addEventListener('keydown',arm,true);
+  window.addEventListener('popstate',function(){
+    if(!armed)return;
+    if(handleBack()){try{history.pushState({k:'app'},'');}catch(_){}}
+    else{armed=false;history.back();}
+  });
+})();
 </script>
 </body></html>
